@@ -5,7 +5,9 @@ import numpy as np
 import argparse
 import os
 from sklearn.metrics import roc_auc_score, f1_score, precision_recall_curve
+import pandas as pd
 
+from sklearn.preprocessing import MinMaxScaler
 from models.TopoGCAD import TopoGCAD
 from datasets.TimeDataset import TimeDataset
 
@@ -110,10 +112,21 @@ if __name__ == '__main__':
 
     # --- 这里替换为你的真实数据加载逻辑 ---
     # 临时生成假数据以保证脚本能跑通
-    print("⚠️ 正在生成随机测试数据... (部署时请替换为 pd.read_csv 加载 SWaT 真实数据)")
-    train_data = np.random.randn(2000, args.node_num)
-    test_data = np.random.randn(500, args.node_num)
-    test_labels = np.random.randint(0, 2, 500)
+    print(f"📂 正在加载真实数据集: {args.data_path}")
+    # 假设你的数据放在 data/swat/train.csv 和 test.csv
+    # 且前 node_num 列是传感器特征，最后一列是 Label (0正常, 1异常)
+    train_df = pd.read_csv(os.path.join(args.data_path, 'train.csv'))
+    test_df = pd.read_csv(os.path.join(args.data_path, 'test.csv'))
+    
+    # 提取特征和标签
+    train_data_raw = train_df.iloc[:, :args.node_num].values
+    test_data_raw = test_df.iloc[:, :args.node_num].values
+    test_labels = test_df.iloc[:, -1].values
+    
+    # ⚠️ 极其重要：传感器数据必须做 Min-Max 归一化
+    scaler = MinMaxScaler()
+    train_data = scaler.fit_transform(train_data_raw)
+    test_data = scaler.transform(test_data_raw)
 
     train_dataset = TimeDataset(train_data, labels=None, seq_len=args.seq_len)
     test_dataset = TimeDataset(test_data, labels=test_labels, seq_len=args.seq_len)
